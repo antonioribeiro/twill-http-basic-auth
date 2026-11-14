@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Support\Facades\DB;
 use A17\Twill\Http\Requests\Admin\Request;
 use A17\TwillHttpBasicAuth\Support\CredentialResolver;
+use A17\TwillHttpBasicAuth\Support\PublishingRequirements;
 
 class TwillHttpBasicAuthRequest extends Request
 {
@@ -42,31 +43,15 @@ class TwillHttpBasicAuthRequest extends Request
     }
 
     /**
-     * A row that is published protects its host: it needs a user name and a password, typed now or already stored. Without them it
-     * could never be opened (or would close the host for everybody), so it is refused here with a message instead of being saved.
+     * The form is stopped earlier, by the controller, with a message of its own; this keeps the rule when the request is validated
+     * by itself.
      */
     private function credentialsToPublishRule(string $attribute, mixed $value, Closure $fail): void
     {
-        if (!filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
-            return;
-        }
-
-        $stored = null;
         $current = $this->route('twillHttpBasicAuth');
 
-        if (is_scalar($current)) {
-            $stored = DB::table('twill_basic_auth')
-                ->where('id', $current)
-                ->first(['username', 'password']);
-        }
-
-        $username = filled($this->input('username')) || filled($stored->username ?? null);
-        $password = filled($this->input('password')) || filled($stored->password ?? null);
-
-        if (!$username || !$password) {
-            $fail(
-                'To publish, fill in the user name and the password: a protected domain nobody can open locks everybody out.',
-            );
+        if (PublishingRequirements::missing($this->all(), is_scalar($current) ? $current : null)) {
+            $fail(PublishingRequirements::message());
         }
     }
 

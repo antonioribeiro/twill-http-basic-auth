@@ -9,7 +9,9 @@ use Illuminate\Support\Facades\URL;
 use A17\Twill\Services\Listings\Columns\Text;
 use A17\Twill\Services\Listings\TableColumns;
 use Illuminate\Contracts\Foundation\Application;
+use A17\Twill\Models\Contracts\TwillModelContract;
 use A17\Twill\Http\Controllers\Admin\ModuleController;
+use A17\TwillHttpBasicAuth\Support\PublishingRequirements;
 use A17\TwillHttpBasicAuth\Repositories\TwillHttpBasicAuthRepository;
 use A17\TwillHttpBasicAuth\Support\Facades\TwillHttpBasicAuth as TwillHttpBasicAuthFacade;
 
@@ -103,9 +105,48 @@ class TwillHttpBasicAuthController extends ModuleController
         return parent::getIndexItems($scopes, $forcePagination);
     }
 
+    /**
+     * Saving a domain as published without a user name and a password is stopped with a red message (a validation error would only
+     * show Twill's own text).
+     */
+    public function update(int|TwillModelContract $id, int|null $submoduleId = null): JsonResponse
+    {
+        $key = $id instanceof TwillModelContract ? $id->getKey() : $id;
+
+        if (PublishingRequirements::missing($this->request->all(), $this->rowKey($key))) {
+            return $this->respondWithError(PublishingRequirements::message());
+        }
+
+        return parent::update($id, $submoduleId);
+    }
+
+    private function rowKey(mixed $key): int|string|null
+    {
+        return is_int($key) || is_string($key) ? $key : null;
+    }
+
+    public function store($parentModuleId = null)
+    {
+        if (PublishingRequirements::missing($this->request->all(), null)) {
+            return $this->respondWithError(PublishingRequirements::message());
+        }
+
+        return parent::store($parentModuleId);
+    }
+
     public function publish(): JsonResponse
     {
         $all = $this->request->all();
+
+        // `active` is the state now: a row that is not active is being turned on
+        $id = $this->request->input('id');
+
+        if (
+            !filter_var($all['active'] ?? false, FILTER_VALIDATE_BOOLEAN) &&
+            PublishingRequirements::missing(['published' => true], $this->rowKey($id))
+        ) {
+            return $this->respondWithError(PublishingRequirements::message());
+        }
 
         $all['active'] = $all['active'] ?? false;
 

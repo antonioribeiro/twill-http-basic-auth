@@ -28,7 +28,7 @@
 - **Failed attempts and lockouts are logged** (host and address, never the credentials), one line per failure and one when the limit is reached.
 - **A user name with a colon** could be saved and never log in; it is refused.
 - **With `ENABLED=false` and `.env` keys set** the admin showed "From .env: YES" and a read-only form while the rows were in force. The admin uses the same test as the middleware.
-- **A row that could not be used could be published and lock everybody out** (credentials written with another `APP_KEY`, or none). A row is published only with a user name and a password that can be read; the admin form refuses to publish without them, with a message.
+- **A row that could not be used could be published and lock everybody out** (credentials written with another `APP_KEY`, or none). A row is published only with a user name and a password that can be read; the admin (the form and the list's publish button) answers a red message and does not publish. The message is an English key, `Domain cannot be enabled without a user name and a password.`: translate it in the application's `lang/{locale}.json`.
 - **CI:** actions pinned by commit, read-only token.
 
 ### Upgrading from 2.x

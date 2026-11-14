@@ -16,11 +16,13 @@ class TwillHttpBasicAuth
     }
 
     /**
-     * Are the credentials in the .env? Then they win and the admin list is read-only.
+     * Are the credentials of the .env in force? Only when the package is enabled and a key is set (the same test the middleware makes):
+     * then they win and the admin list is read-only. With the package disabled the rows of the list decide.
      */
     public function hasDotEnv(): bool
     {
-        return filled($this->config('keys.username')) || filled($this->config('keys.password'));
+        return CredentialResolver::enabled() &&
+            (filled($this->config('keys.username')) || filled($this->config('keys.password')));
     }
 
     public function getDomain(string|null $url = null): string|null
@@ -35,7 +37,7 @@ class TwillHttpBasicAuth
      */
     public function allDomainsEnabled(): bool
     {
-        return ($this->hasDotEnv() && CredentialResolver::enabled()) ||
+        return $this->hasDotEnv() ||
             DB::table('twill_basic_auth')
                 ->where('published', true)
                 ->whereNull('deleted_at')

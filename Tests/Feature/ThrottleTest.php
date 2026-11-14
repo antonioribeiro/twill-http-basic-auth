@@ -2,6 +2,8 @@
 
 namespace A17\TwillHttpBasicAuth\Tests\Feature;
 
+use Illuminate\Support\Facades\Event;
+use Illuminate\Log\Events\MessageLogged;
 use A17\TwillHttpBasicAuth\Tests\TestCase;
 
 /**
@@ -98,5 +100,56 @@ class ThrottleTest extends TestCase
         }
 
         $this->visit('admin.example.test', 'user', 'secret')->assertOk();
+    }
+
+    public function test_rotating_the_host_name_does_not_give_a_new_counter_with_the_env_credentials(): void
+    {
+        $this->envCredentials('envuser', 'envsecret');
+
+        foreach (range(1, 3) as $number) {
+            $this->visit("guess{$number}.example.test", 'envuser', 'wrong')->assertStatus(401);
+        }
+
+        $this->visit('guess4.example.test', 'envuser', 'wrong')->assertStatus(429);
+    }
+
+    public function test_rotating_the_host_name_does_not_give_a_new_counter_with_a_star_row(): void
+    {
+        $this->row('*', 'star', 'starsecret');
+
+        foreach (range(1, 3) as $number) {
+            $this->visit("guess{$number}.example.test", 'star', 'wrong')->assertStatus(401);
+        }
+
+        $this->visit('guess4.example.test', 'star', 'wrong')->assertStatus(429);
+    }
+
+    public function test_a_failed_attempt_and_the_lockout_are_logged_without_the_credentials(): void
+    {
+        $messages = [];
+
+        Event::listen(function (MessageLogged $log) use (&$messages): void {
+            if ($log->level === 'warning') {
+                $messages[] = $log->message;
+            }
+        });
+
+        foreach (range(1, 4) as $ignored) {
+            $this->visit('admin.example.test', 'someuser', 'hunter2-wrong', ip: '10.0.0.9');
+        }
+
+        // one line per failure, one for the moment the limit is reached, none for the refused requests that follow
+        $failures = array_filter($messages, fn(string $message): bool => str_contains($message, 'failed'));
+        $lockouts = array_filter($messages, fn(string $message): bool => str_contains($message, 'locked out'));
+
+        $this->assertCount(3, $failures);
+        $this->assertCount(1, $lockouts);
+
+        foreach ($messages as $message) {
+            $this->assertStringContainsString('admin.example.test', $message);
+            $this->assertStringContainsString('10.0.0.9', $message);
+            $this->assertStringNotContainsString('hunter2', $message);
+            $this->assertStringNotContainsString('someuser', $message);
+        }
     }
 }

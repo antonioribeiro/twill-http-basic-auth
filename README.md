@@ -101,7 +101,7 @@ TWILL_HTTP_BASIC_AUTH_LARAVEL_DATABASE_LOGIN_ENABLED=true
 
 ### Rate limiting
 
-Guessing is slowed down. Only **failed** attempts count, one counter per visitor (IP address) and host: a correct login never counts and clears the counter, and one visitor cannot lock another out. Past the limit the answer is `429` with `Retry-After` for the rest of the minute. The default is 10 failures a minute:
+Guessing is slowed down. Only **failed** attempts count, one counter per visitor (IP address) and host: a correct login never counts and clears the counter, and one visitor cannot lock another out. Failures and lockouts are logged (host and address, never the credentials). Past the limit the answer is `429` with `Retry-After` for the rest of the minute. The default is 10 failures a minute:
 
 ```dotenv
 TWILL_HTTP_BASIC_AUTH_RATE_LIMITING_ATTEMPTS=10
@@ -117,14 +117,17 @@ What the package guarantees, and what the test suite checks:
 
 - **Fails closed.** A protected host whose credentials cannot be used (an empty or undecryptable password, half of the `.env` pair) answers `503` and logs an error. It never answers `200`.
 - **Constant-time comparison** (`hash_equals` on a digest of each field) and **no default credentials**: there is no `usern@me / passw0rt` any more.
-- **Passwords are stored encrypted.** Only the admin form (behind the Twill login) shows the stored password; the model never gives it back in JSON or listings, the `.env` password is never shown, saving the field empty keeps the stored one, and no revision keeps it (revisions are off for this module). A value that cannot be decrypted is an error, not a plain-text password.
+- **Only ADMIN reaches the module** (the `manage-users` gate): a PUBLISHER or VIEWONLY cannot read, change or delete the shared password.
+- **Passwords are stored encrypted.** Only the admin form (for ADMIN) shows the stored password; the model never gives it back in JSON or listings, the `.env` password is never shown, saving the field empty keeps the stored one, and no revision keeps it (revisions are off for this module). A value that cannot be decrypted is an error, not a plain-text password.
 - **Not cacheable.** Every 401, 429, 503 and every response behind the password carries `Cache-Control: no-store, private`.
 - **Closed everywhere, open nowhere by default**: a global middleware and an empty `ignore.paths`.
-- **Guessing is slowed down**, per visitor and host, counting failures only (see Rate limiting). A request with no credentials, such as the browser's first one, is asked and not counted.
+- **Guessing is slowed down**, per visitor and per what matched (a row's host, or `*` for the `.env` and the star row: changing the Host header does not give a new counter), counting failures only (see Rate limiting). A request with no credentials, such as the browser's first one, is asked and not counted.
 - **Resolved per request**, kept on the request: nothing is carried over between requests, so it is safe under Octane.
 - **No session is created by Basic Auth.** The optional database logins check the credentials with the guard's `validate()` and a visitor's session is never looked at: the password is asked before any session starts. The Twill login only lets `published` accounts in.
 
 What it cannot do for you:
+
+- **Database logins widen who can pass.** With the `laravel` login on, every account of the website's `users` table passes: if people can register freely, anyone passes. Give the guard a condition (`database-login.laravel.conditions`, such as a verified or active flag), or leave it off. The prompt is also one more place to guess an account password, limited only by the rate limit.
 
 - **A row protects a host name, not the application.** A row for `staging.example.com` leaves `www.staging.example.com`, or any other name the server answers to, open. For a whole site use the `*` row or the `.env` credentials.
 - **The host is `Request::getHost()`**, and the visitor's address is `$request->ip()`. Both are only as true as your trusted proxies (Laravel's `TrustProxies`): trust your CDN's addresses, never `*`, and never loopback on a machine that clients reach directly. A forged `X-Forwarded-Host` is believed from a trusted proxy; a forged `X-Forwarded-For` lets a client choose the address the rate limit counts. Behind a proxy that is not trusted, every visitor has the proxy's address and shares one counter.

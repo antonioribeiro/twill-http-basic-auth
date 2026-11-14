@@ -1,29 +1,17 @@
 {
-    "name": "twill-feature-flags",
+    "name": "twill-http-basic-auth",
     "private": true,
     "scripts": {
         "precommit": "lint-staged",
-        "prepare": "husky install"
-    },
-    "lint-staged": {
-        "package.json": "sort-package-json",
-        "**/*": "sh tools/linters.sh conflict-markers",
-        "**/*.php": [
-            "sh tools/linters.sh phpstan",
-            "sh tools/linters.sh prettify"
-        ]
+        "prepare": "husky"
     },
     "dependencies": {},
     "devDependencies": {
-        "@prettier/plugin-php": "~0.18.9",
-        "@shufo/prettier-plugin-blade": "~1.5.4",
-        "husky": "~8.0.1",
-        "lint-staged": "~13.0.3",
-        "prettier": "~2.7.1",
-        "sort-package-json": "~1.57.0"
-    },
-    "engines": {
-        "node": "~16",
-        "npm": "~8"
+        "@prettier/plugin-php": "~0.24.0",
+        "@shufo/prettier-plugin-blade": "~1.16.1",
+        "husky": "^9.1.7",
+        "lint-staged": "~16.2.7",
+        "prettier": "~3.7.4",
+        "sort-package-json": "~3.5.0"
     }
 }

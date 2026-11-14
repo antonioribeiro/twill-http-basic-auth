@@ -1,22 +1,18 @@
 includes:
-    - ./vendor/nunomaduro/larastan/extension.neon
+    - ./vendor/larastan/larastan/extension.neon
 
 parameters:
     paths:
         - src
+        - Tests
 
-    level: 8
-
-    checkMissingIterableValueType: false
-
-    universalObjectCratesClasses:
+    level: max
 
     ignoreErrors:
+        # The package's own config file legitimately reads env(): it is a config file even though it sits outside
+        # the host application's config/ directory.
+        -
+            identifier: larastan.noEnvCallsOutsideOfConfig
+            path: src/config/*
 
     reportUnmatchedIgnoredErrors: false
-
-    checkGenericClassInNonGenericObjectType: false
-
-    excludePaths:
-      analyseAndScan:
-        - src/Models/Behaviors/Encrypt.php

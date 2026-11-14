@@ -142,12 +142,12 @@ prettier() {
     checkExecutable "Prettier" $PRETTIER
 
     if [ "$FILES" = "." ]; then
-        if ! $PRETTIER --loglevel=error --quiet --write src/; then
+        if ! $PRETTIER --log-level=error --quiet --write src/; then
             fatalError "Prettier finished with errors"
         fi
     else
         for FILE in $FILES; do
-            if ! $PRETTIER --loglevel=error --quiet --write "$FILE"; then
+            if ! $PRETTIER --log-level=error --quiet --write "$FILE"; then
                 fatalError "Prettier finished with errors"
             fi
         done
@@ -173,11 +173,11 @@ phpStan() {
             \rm "$PATHS_FILE"
         fi
 
-        for FILE in $FILES; do
-            if ! $PHPSTAN analyse "$FILE" >$LOGFILE 2>&1; then
-                fatalError "PHPStan finished with errors. Check the log file: $LOGFILE"
-            fi
-        done
+        # one run for all the staged files (IFS is "|" here, so $FILES splits into one argument per file): a run per
+        # file would load Laravel and Twill again for each of them
+        if ! $PHPSTAN analyse $FILES >$LOGFILE 2>&1; then
+            fatalError "PHPStan finished with errors. Check the log file: $LOGFILE"
+        fi
 
     fi
 

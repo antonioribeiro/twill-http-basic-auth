@@ -1,0 +1,17 @@
+# Kept out of the archive Composer downloads: only the package itself is installed
+/.github export-ignore
+/.husky export-ignore
+/Tests export-ignore
+/docs export-ignore
+/tools export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/.php-cs-fixer.dist.php export-ignore
+/.prettierignore export-ignore
+/.prettierrc.yaml export-ignore
+/.lintstagedrc.mjs export-ignore
+/testbench.yaml export-ignore
+/CHANGELOG.md export-ignore
+/package.json export-ignore
+/phpstan.neon export-ignore
+/phpunit.xml.dist export-ignore

@@ -1,0 +1,5 @@
+# Used by Testbench's `vendor/bin/testbench` and by larastan, which boots this application to resolve views, config and
+# routes while it analyses the package.
+providers:
+  - A17\Twill\TwillServiceProvider
+  - A17\TwillHttpBasicAuth\ServiceProvider

@@ -128,6 +128,7 @@ What it cannot do for you:
 
 - **A row protects a host name, not the application.** A row for `staging.example.com` leaves `www.staging.example.com`, or any other name the server answers to, open. For a whole site use the `*` row or the `.env` credentials.
 - **The host is `Request::getHost()`**, and the visitor's address is `$request->ip()`. Both are only as true as your trusted proxies (Laravel's `TrustProxies`): trust your CDN's addresses, never `*`, and never loopback on a machine that clients reach directly. A forged `X-Forwarded-Host` is believed from a trusted proxy; a forged `X-Forwarded-For` lets a client choose the address the rate limit counts. Behind a proxy that is not trusted, every visitor has the proxy's address and shares one counter.
+- **The rate limit needs a cache that lasts between requests** (Redis, database or file). With the `array` store every request starts from zero and nothing is ever limited.
 - **Run `php artisan migrate`**: version 3 adds a migration (the credential columns become `text`: an encrypted value is longer than 255 characters). Without the table the middleware cannot read the rows and the request fails.
 
 ## Development

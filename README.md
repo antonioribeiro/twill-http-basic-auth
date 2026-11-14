@@ -92,7 +92,7 @@ TWILL_HTTP_BASIC_AUTH_PASSWORD=secret
 ```
 
 ### Database login 
-You can configure the package to allow users pass HTTP Auth Basic with their existing email and password, by just enabling the feature on the `.env` file:   
+You can configure the package to allow users to pass HTTP Basic Auth with their existing e-mail and password, by enabling the feature on the `.env` file. The person types **their own account's e-mail and password** (the ones they use to log in to Twill or to the website) in the browser's password prompt. Being logged in does not count, only what is typed in the prompt: the prompt comes before any session. In the admin list, each row has the same two switches ("Allow Twill users to login", "Allow Laravel users to login"). Twill accounts must be published.   
 
 ```dotenv
 TWILL_HTTP_BASIC_AUTH_TWILL_DATABASE_LOGIN_ENABLED=true

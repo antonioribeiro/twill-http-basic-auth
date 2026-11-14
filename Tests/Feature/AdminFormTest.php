@@ -135,4 +135,24 @@ class AdminFormTest extends TestCase
 
         $this->assertFalse((bool) DB::table('twill_basic_auth')->where('id', $row->getKey())->value('published'));
     }
+
+    public function test_the_form_says_that_accounts_use_their_own_email_and_password(): void
+    {
+        $source = (string) file_get_contents(view()->getFinder()->find('twill-http-basic-auth::admin.form'));
+
+        $blocks = array_slice(explode("@formField('checkbox'", $source), 1);
+
+        foreach (['allow_twill_login' => 'Twill', 'allow_laravel_login' => 'Laravel'] as $field => $who) {
+            $block = collect($blocks)->first(fn(string $block): bool => str_contains($block, "'{$field}'"));
+
+            $this->assertIsString($block, "the {$field} checkbox is missing");
+            $this->assertStringContainsString("{$who} users", $block);
+            $this->assertStringContainsString('own e-mail and password', $block, "{$field} has no note");
+            $this->assertStringContainsString(
+                "same ones they use to log in to {$who}",
+                $block,
+                "{$field} does not name the login",
+            );
+        }
+    }
 }

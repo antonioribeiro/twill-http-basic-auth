@@ -44,7 +44,7 @@ class AdminFormTest extends TestCase
         $this->assertSame('user', Crypt::decryptString($stored->username));
     }
 
-    public function test_the_form_never_gets_the_password_back(): void
+    public function test_the_form_loads_the_stored_password_and_the_username(): void
     {
         $row = $this->save([
             'domain' => 'admin.example.test',
@@ -55,11 +55,49 @@ class AdminFormTest extends TestCase
 
         $fields = app(TwillHttpBasicAuthRepository::class)->getFormFields($row);
 
-        $this->assertStringNotContainsString('secret', (string) json_encode($fields));
         $this->assertSame('user', $fields['username'] ?? null);
+        $this->assertSame('secret', $fields['password'] ?? null);
     }
 
-    public function test_the_form_does_not_show_the_password_of_the_env_either(): void
+    public function test_saving_the_form_as_loaded_keeps_the_password_working(): void
+    {
+        $repository = app(TwillHttpBasicAuthRepository::class);
+
+        $row = $this->save([
+            'domain' => 'admin.example.test',
+            'username' => 'user',
+            'password' => 'secret',
+            'published' => true,
+        ]);
+
+        $fields = $repository->getFormFields($row);
+        $fields['username'] = 'renamed';
+
+        $repository->update(TwillHttpBasicAuth::query()->firstOrFail()->id, $fields);
+
+        $stored = TwillHttpBasicAuth::query()->firstOrFail();
+
+        $this->assertSame('secret', $stored->storedPassword());
+        $this->assertSame('renamed', $stored->username);
+        $this->assertTrue($stored->published);
+    }
+
+    public function test_a_password_typed_in_the_form_is_saved(): void
+    {
+        $repository = app(TwillHttpBasicAuthRepository::class);
+
+        $this->save(['domain' => 'admin.example.test', 'username' => 'user', 'published' => false]);
+
+        $repository->update(TwillHttpBasicAuth::query()->firstOrFail()->id, [
+            'domain' => 'admin.example.test',
+            'username' => 'user',
+            'password' => 'typed',
+        ]);
+
+        $this->assertSame('typed', TwillHttpBasicAuth::query()->firstOrFail()->storedPassword());
+    }
+
+    public function test_the_form_does_not_show_the_password_of_the_env(): void
     {
         $this->envCredentials('envuser', 'envsecret');
         $row = $this->save([
@@ -136,23 +174,21 @@ class AdminFormTest extends TestCase
         $this->assertFalse((bool) DB::table('twill_basic_auth')->where('id', $row->getKey())->value('published'));
     }
 
-    public function test_the_form_says_that_accounts_use_their_own_email_and_password(): void
+    public function test_each_login_switch_has_a_short_note_naming_the_accounts_email_and_password(): void
     {
         $source = (string) file_get_contents(view()->getFinder()->find('twill-http-basic-auth::admin.form'));
 
         $blocks = array_slice(explode("@formField('checkbox'", $source), 1);
 
-        foreach (['allow_twill_login' => 'Twill', 'allow_laravel_login' => 'Laravel'] as $field => $who) {
+        foreach (['allow_twill_login' => 'Twill', 'allow_laravel_login' => 'website'] as $field => $account) {
             $block = collect($blocks)->first(fn(string $block): bool => str_contains($block, "'{$field}'"));
 
             $this->assertIsString($block, "the {$field} checkbox is missing");
-            $this->assertStringContainsString("{$who} users", $block);
-            $this->assertStringContainsString('own e-mail and password', $block, "{$field} has no note");
-            $this->assertStringContainsString(
-                "same ones they use to log in to {$who}",
-                $block,
-                "{$field} does not name the login",
-            );
+
+            preg_match("/'note' => '([^']*)'/", $block, $note);
+
+            $this->assertStringContainsString("{$account} e-mail and password", $note[1] ?? '', "{$field} has no note");
+            $this->assertLessThan(70, strlen($note[1] ?? ''), "the note of {$field} is too long");
         }
     }
 }

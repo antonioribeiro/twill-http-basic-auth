@@ -20,7 +20,7 @@
 - **Rows moved to the trash kept protecting**, a row with an unusable domain (`*.example.com`, `http://`) showed as `PROTECTED` and protected nothing, and a row published on the strength of the `.env` credentials caused a 503 on every host the day those were removed. Rows are now saved unpublished unless they have a usable domain and credentials of their own; the domain is validated (a host name or `*`, once).
 - **`ENABLED=1` (or `yes`) answered 500 on every request** and `ENABLED` unset ignored the rows. The flag is read leniently and only gates the `.env` credentials.
 - **The columns `username` and `password` were `varchar(255)`**, too short for an encrypted value of 32 characters or more (a 500 on PostgreSQL and strict MySQL, a silent cut on lenient MySQL). A migration makes them `text`.
-- **The two login switches of the admin form now say what they do:** the person types their own account's e-mail and password in the browser's prompt (a session does not count).
+- **The two login switches of the admin form have a short note:** people use their own Twill or website e-mail and password at the prompt.
 - **Twill accounts that were not published could pass** with their own password; the Twill login now asks for `published`.
 
 ### Upgrading from 2.x

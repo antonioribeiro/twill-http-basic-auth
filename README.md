@@ -92,7 +92,7 @@ TWILL_HTTP_BASIC_AUTH_PASSWORD=secret
 ```
 
 ### Database login 
-You can configure the package to allow users to pass HTTP Basic Auth with their existing e-mail and password, by enabling the feature on the `.env` file. The person types **their own account's e-mail and password** (the ones they use to log in to Twill or to the website) in the browser's password prompt. Being logged in does not count, only what is typed in the prompt: the prompt comes before any session. In the admin list, each row has the same two switches ("Allow Twill users to login", "Allow Laravel users to login"). Twill accounts must be published.   
+People who have an account can pass HTTP Basic Auth with their own e-mail and password, typed in the browser's prompt (Twill accounts must be published). Turn it on in the `.env` file, or per row with the switches "Allow Twill users to login" and "Allow Laravel users to login". Being logged in does not count: the prompt comes before any session.
 
 ```dotenv
 TWILL_HTTP_BASIC_AUTH_TWILL_DATABASE_LOGIN_ENABLED=true
@@ -117,7 +117,7 @@ What the package guarantees, and what the test suite checks:
 
 - **Fails closed.** A protected host whose credentials cannot be used (an empty or undecryptable password, half of the `.env` pair) answers `503` and logs an error. It never answers `200`.
 - **Constant-time comparison** (`hash_equals` on a digest of each field) and **no default credentials**: there is no `usern@me / passw0rt` any more.
-- **Passwords are stored encrypted, shown never.** The admin form does not get the password back, saving it empty keeps the stored one, and no revision keeps it (revisions are off for this module). A value that cannot be decrypted is an error, not a plain-text password.
+- **Passwords are stored encrypted.** Only the admin form (behind the Twill login) shows the stored password; the model never gives it back in JSON or listings, the `.env` password is never shown, saving the field empty keeps the stored one, and no revision keeps it (revisions are off for this module). A value that cannot be decrypted is an error, not a plain-text password.
 - **Not cacheable.** Every 401, 429, 503 and every response behind the password carries `Cache-Control: no-store, private`.
 - **Closed everywhere, open nowhere by default**: a global middleware and an empty `ignore.paths`.
 - **Guessing is slowed down**, per visitor and host, counting failures only (see Rate limiting). A request with no credentials, such as the browser's first one, is asked and not counted.

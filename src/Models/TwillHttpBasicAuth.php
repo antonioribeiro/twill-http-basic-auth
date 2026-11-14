@@ -9,6 +9,7 @@ use A17\TwillHttpBasicAuth\Support\CredentialResolver;
 use A17\TwillHttpBasicAuth\Support\Facades\TwillHttpBasicAuth as TwillHttpBasicAuthFacade;
 
 /**
+ * @property int $id
  * @property string|null $domain
  * @property string|null $username
  * @property string|null $password
@@ -60,6 +61,20 @@ class TwillHttpBasicAuth extends Model
     public function getPasswordAttribute(): string|null
     {
         return null;
+    }
+
+    /**
+     * The decrypted password, for the admin form only. A value that cannot be decrypted is empty.
+     */
+    public function storedPassword(): string|null
+    {
+        $stored = $this->attributes['password'] ?? null;
+
+        try {
+            return $this->decrypt(is_string($stored) ? $stored : null);
+        } catch (DecryptException) {
+            return null;
+        }
     }
 
     public function setDomainAttribute(string|null $value): void

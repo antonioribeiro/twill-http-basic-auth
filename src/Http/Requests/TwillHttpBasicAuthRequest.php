@@ -26,7 +26,7 @@ class TwillHttpBasicAuthRequest extends Request
     }
 
     /**
-     * The password may be left empty on a save (the stored one is kept); a row without credentials simply stays unpublished.
+     * The password may be left empty on a save (the stored one is kept). A row without credentials may be saved, but not published.
      *
      * @return array<string, list<Closure|string>>
      */
@@ -37,7 +37,37 @@ class TwillHttpBasicAuthRequest extends Request
             // a colon would split the user name in two in the Basic header: such a user name could never log in
             'username' => ['nullable', 'string', 'max:255', 'not_regex:/:/'],
             'password' => ['nullable', 'string', 'max:255'],
+            'published' => [$this->credentialsToPublishRule(...)],
         ];
+    }
+
+    /**
+     * A row that is published protects its host: it needs a user name and a password, typed now or already stored. Without them it
+     * could never be opened (or would close the host for everybody), so it is refused here with a message instead of being saved.
+     */
+    private function credentialsToPublishRule(string $attribute, mixed $value, Closure $fail): void
+    {
+        if (!filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+            return;
+        }
+
+        $stored = null;
+        $current = $this->route('twillHttpBasicAuth');
+
+        if (is_scalar($current)) {
+            $stored = DB::table('twill_basic_auth')
+                ->where('id', $current)
+                ->first(['username', 'password']);
+        }
+
+        $username = filled($this->input('username')) || filled($stored->username ?? null);
+        $password = filled($this->input('password')) || filled($stored->password ?? null);
+
+        if (!$username || !$password) {
+            $fail(
+                'To publish, fill in the user name and the password: a protected domain nobody can open locks everybody out.',
+            );
+        }
     }
 
     /**

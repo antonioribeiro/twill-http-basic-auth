@@ -162,8 +162,9 @@ class TwillHttpBasicAuth extends Model
     }
 
     /**
-     * A row is published only when it can protect something: a usable domain and credentials of its own. The .env credentials do
-     * not count here: a row published on their strength would answer 503 on every host the day they are removed.
+     * A row is published only when it can protect something: a usable domain and credentials of its own that can be READ (a value
+     * written with another APP_KEY cannot). A published row that cannot be used closes its host for everybody, the admin included.
+     * The .env credentials do not count here: a row published on their strength would answer 503 the day they are removed.
      */
     public function save(array $options = []): bool
     {
@@ -172,10 +173,21 @@ class TwillHttpBasicAuth extends Model
         $this->attributes['published'] =
             $published &&
             filled($this->attributes['domain'] ?? null) &&
-            filled($this->attributes['username'] ?? null) &&
-            filled($this->attributes['password'] ?? null);
+            $this->isReadable('username') &&
+            $this->isReadable('password');
 
         return parent::save($options);
+    }
+
+    private function isReadable(string $column): bool
+    {
+        $stored = $this->attributes[$column] ?? null;
+
+        try {
+            return filled($this->decrypt(is_string($stored) ? $stored : null));
+        } catch (DecryptException) {
+            return false;
+        }
     }
 
     public function getCredentialsStringAttribute(): string

@@ -239,4 +239,44 @@ class AdminFormTest extends TestCase
                 ->has('username'),
         );
     }
+
+    public function test_a_row_whose_credentials_cannot_be_decrypted_is_never_published(): void
+    {
+        $other = new \Illuminate\Encryption\Encrypter(random_bytes(32), 'aes-256-cbc');
+
+        $row = new TwillHttpBasicAuth();
+        $row->forceFill(['domain' => '*', 'published' => true]);
+        $row->setRawAttributes([
+            'domain' => '*',
+            'published' => true,
+            'username' => $other->encryptString('u'),
+            'password' => $other->encryptString('p'),
+        ]);
+        $row->save();
+
+        $this->assertFalse((bool) DB::table('twill_basic_auth')->where('id', $row->getKey())->value('published'));
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function errorsOf(array $data): \Illuminate\Support\MessageBag
+    {
+        $request = TwillHttpBasicAuthRequest::create('/', 'POST', $data);
+
+        return Validator::make($request->all(), $request->rulesForCreate())->errors();
+    }
+
+    public function test_publishing_a_row_without_a_user_name_or_a_password_is_refused_with_a_message(): void
+    {
+        $data = ['domain' => 'admin.example.test', 'published' => true];
+
+        $this->assertTrue($this->errorsOf($data + ['username' => 'user'])->has('published'), 'no password');
+        $this->assertTrue($this->errorsOf($data + ['password' => 'secret'])->has('published'), 'no user name');
+        $this->assertFalse($this->errorsOf($data + ['username' => 'user', 'password' => 'secret'])->has('published'));
+        $this->assertFalse(
+            $this->errorsOf(['published' => false] + $data)->has('published'),
+            'a row that is not published may be incomplete',
+        );
+    }
 }

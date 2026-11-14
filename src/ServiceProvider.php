@@ -10,7 +10,7 @@ use A17\TwillHttpBasicAuth\Support\TwillHttpBasicAuth;
 
 class ServiceProvider extends TwillPackageServiceProvider
 {
-    /** @var bool $autoRegisterCapsules */
+    /** @var bool */
     protected $autoRegisterCapsules = false;
 
     public function boot(): void
@@ -36,7 +36,7 @@ class ServiceProvider extends TwillPackageServiceProvider
             $this->getPackageDirectory() . '/src',
         );
 
-        app()->singleton(TwillHttpBasicAuth::class, fn() => new TwillHttpBasicAuth());
+        $this->app->singleton(TwillHttpBasicAuth::class);
     }
 
     public function registerViews(): void
@@ -57,18 +57,22 @@ class ServiceProvider extends TwillPackageServiceProvider
         ]);
     }
 
+    /**
+     * The middleware is global: it sees every request, whatever its route is. A middleware group would leave out what Laravel serves
+     * outside the groups (image routes, robots.txt, health checks, a dashboard like Horizon, pages that do not exist, the automatic
+     * OPTIONS answers). It is pushed after the application's own global middleware, so the proxies are trusted (and the host is
+     * known) before it decides.
+     */
     public function configureMiddleware(): void
     {
-        if (config('twill-http-basic-auth.middleware.automatic')) {
-            /**
-             * @phpstan-ignore-next-line
-             * @var \Illuminate\Foundation\Http\Kernel $kernel
-             */
-            $kernel = $this->app[Kernel::class];
+        if (config('twill-http-basic-auth.middleware.automatic') !== true) {
+            return;
+        }
 
-            foreach (config('twill-http-basic-auth.middleware.groups', []) as $group) {
-                $kernel->appendMiddlewareToGroup($group, config('twill-http-basic-auth.middleware.class'));
-            }
+        $middleware = config('twill-http-basic-auth.middleware.class');
+
+        if (is_string($middleware)) {
+            $this->app->make(Kernel::class)->pushMiddleware($middleware);
         }
     }
 }

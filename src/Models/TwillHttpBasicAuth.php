@@ -3,10 +3,9 @@
 namespace A17\TwillHttpBasicAuth\Models;
 
 use A17\Twill\Models\Model;
-use A17\Twill\Models\Behaviors\HasRevisions;
-use A17\TwillHttpBasicAuth\Services\Helpers;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use A17\TwillHttpBasicAuth\Models\Behaviors\Encrypt;
+use Illuminate\Contracts\Encryption\DecryptException;
+use A17\TwillHttpBasicAuth\Support\CredentialResolver;
 use A17\TwillHttpBasicAuth\Support\Facades\TwillHttpBasicAuth as TwillHttpBasicAuthFacade;
 
 /**
@@ -25,7 +24,6 @@ use A17\TwillHttpBasicAuth\Support\Facades\TwillHttpBasicAuth as TwillHttpBasicA
  */
 class TwillHttpBasicAuth extends Model
 {
-    use HasRevisions;
     use Encrypt;
 
     protected $table = 'twill_basic_auth';
@@ -37,7 +35,7 @@ class TwillHttpBasicAuth extends Model
         'status',
         'from_dot_env',
         'allow_laravel_login_string',
-        'allow_laravel_login_string',
+        'allow_twill_login_string',
     ];
 
     public function __toString()
@@ -47,11 +45,7 @@ class TwillHttpBasicAuth extends Model
 
     public function getUsernameAttribute(): string|null
     {
-        return $this->decrypt(
-            Helpers::instance()
-                ->setCurrent($this)
-                ->username(true),
-        );
+        return $this->shown('username', 'keys.username');
     }
 
     public function setUsernameAttribute(string|null $value): void
@@ -59,13 +53,18 @@ class TwillHttpBasicAuth extends Model
         $this->attributes['username'] = $this->encrypt($value);
     }
 
+    /**
+     * The password is never given back: not to the admin form, not to a page's JSON. It is written when typed, and an empty field keeps
+     * what is stored (see the repository).
+     */
     public function getPasswordAttribute(): string|null
     {
-        return $this->decrypt(
-            Helpers::instance()
-                ->setCurrent($this)
-                ->password(true),
-        );
+        return null;
+    }
+
+    public function setDomainAttribute(string|null $value): void
+    {
+        $this->attributes['domain'] = CredentialResolver::normalizeDomain($value);
     }
 
     public function setPasswordAttribute(string|null $value): void
@@ -73,16 +72,30 @@ class TwillHttpBasicAuth extends Model
         $this->attributes['password'] = $this->encrypt($value);
     }
 
-    public function getPublishedAttribute(): string|null
+    public function getPublishedAttribute(): bool
     {
-        return Helpers::instance()
-            ->setCurrent($this)
-            ->published(true);
+        return (bool) ($this->attributes['published'] ?? false);
     }
 
-    public function revisions(): HasMany
+    /**
+     * What the admin shows for a credential: the one in the .env when there is one, else the stored one, decrypted. A stored value
+     * that cannot be decrypted shows as empty (the row then counts as not configured), it is never shown as it is.
+     */
+    private function shown(string $column, string $environmentKey): string|null
     {
-        return $this->hasMany($this->getRevisionModel(), 'twill_basic_auth_id')->orderBy('created_at', 'desc');
+        if (TwillHttpBasicAuthFacade::hasDotEnv()) {
+            $value = TwillHttpBasicAuthFacade::config($environmentKey);
+
+            return is_string($value) ? $value : null;
+        }
+
+        $stored = $this->attributes[$column] ?? null;
+
+        try {
+            return $this->decrypt(is_string($stored) ? $stored : null);
+        } catch (DecryptException) {
+            return null;
+        }
     }
 
     public function getDomainStringAttribute(): string|null
@@ -98,7 +111,11 @@ class TwillHttpBasicAuth extends Model
 
     public function getConfiguredAttribute(): bool
     {
-        return filled($this->username) && filled($this->password);
+        if (TwillHttpBasicAuthFacade::hasDotEnv()) {
+            return true;
+        }
+
+        return filled($this->attributes['username'] ?? null) && filled($this->attributes['password'] ?? null);
     }
 
     public function getStatusAttribute(): string
@@ -129,9 +146,19 @@ class TwillHttpBasicAuth extends Model
         return $this->allow_twill_login ? 'Allowed' : 'Disallowed';
     }
 
+    /**
+     * A row is published only when it can protect something: a usable domain and credentials of its own. The .env credentials do
+     * not count here: a row published on their strength would answer 503 on every host the day they are removed.
+     */
     public function save(array $options = []): bool
     {
-        $this->attributes['published'] = $this->configured && $this->attributes['published'];
+        $published = (bool) ($this->attributes['published'] ?? false);
+
+        $this->attributes['published'] =
+            $published &&
+            filled($this->attributes['domain'] ?? null) &&
+            filled($this->attributes['username'] ?? null) &&
+            filled($this->attributes['password'] ?? null);
 
         return parent::save($options);
     }

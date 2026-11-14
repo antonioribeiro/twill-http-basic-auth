@@ -35,7 +35,7 @@
 
     @formField('checkbox', [
         'name' => 'allow_twill_login',
-        'label' => "Allow Twill users to login",
+        'label' => 'Allow Twill users to login',
         'disabled' => $twillHttpBasicAuth::hasDotEnv(),
     ])
 @stop

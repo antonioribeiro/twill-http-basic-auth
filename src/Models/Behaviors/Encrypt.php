@@ -2,41 +2,21 @@
 
 namespace A17\TwillHttpBasicAuth\Models\Behaviors;
 
-use Throwable;
 use Illuminate\Support\Facades\Crypt;
 
+/**
+ * Credentials are stored encrypted and read back strictly: a value that cannot be decrypted throws (`DecryptException`), it is
+ * never returned as it is. A blank value is stored as null.
+ */
 trait Encrypt
 {
     public function encrypt(string|null $value): string|null
     {
-        if (blank($value)) {
-            return null;
-        }
-
-        $encrypted = 'ENCRYPTION ERROR';
-
-        try {
-            $encrypted = Crypt::encryptString($value);
-        } catch (\Throwable) {
-        }
-
-        return $encrypted;
+        return blank($value) ? null : Crypt::encryptString($value);
     }
 
     public function decrypt(string|null $value): string|null
     {
-        if (blank($value)) {
-            return null;
-        }
-
-        $decrypted = '';
-
-        try {
-            $decrypted = Crypt::decryptString($value);
-        } catch (\Throwable) {
-            $decrypted = $value;
-        }
-
-        return $decrypted;
+        return blank($value) ? null : Crypt::decryptString($value);
     }
 }

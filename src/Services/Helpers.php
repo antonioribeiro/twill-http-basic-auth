@@ -13,10 +13,6 @@ class Helpers
 
     public static function instance(): TwillHttpBasicAuth
     {
-        if (!app()->bound('http-basic-auth')) {
-            app()->singleton('http-basic-auth', fn() => new TwillHttpBasicAuth());
-        }
-
-        return app('http-basic-auth');
+        return app(TwillHttpBasicAuth::class);
     }
 }

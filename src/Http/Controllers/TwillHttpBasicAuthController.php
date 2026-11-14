@@ -5,8 +5,8 @@ namespace A17\TwillHttpBasicAuth\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
-use A17\Twill\Services\Listings\TableColumns;
 use A17\Twill\Services\Listings\Columns\Text;
+use A17\Twill\Services\Listings\TableColumns;
 use A17\Twill\Http\Controllers\Admin\ModuleController;
 use A17\TwillHttpBasicAuth\Repositories\TwillHttpBasicAuthRepository;
 use A17\TwillHttpBasicAuth\Support\Facades\TwillHttpBasicAuth as TwillHttpBasicAuthFacade;
@@ -19,6 +19,7 @@ class TwillHttpBasicAuthController extends ModuleController
 
     protected $titleFormKey = 'domain';
 
+    /** @var array<string, string> */
     protected $defaultOrders = ['domain' => 'asc'];
 
     public function index(int|null $parentModuleId = null): mixed
@@ -41,7 +42,9 @@ class TwillHttpBasicAuthController extends ModuleController
             return;
         }
 
-        $appDomain = TwillHttpBasicAuthFacade::getDomain(config('app.url'));
+        $appUrl = config('app.url');
+
+        $appDomain = TwillHttpBasicAuthFacade::getDomain(is_string($appUrl) ? $appUrl : null);
 
         $currentDomain = TwillHttpBasicAuthFacade::getDomain(URL::current());
 
@@ -74,9 +77,9 @@ class TwillHttpBasicAuthController extends ModuleController
     }
 
     /**
-     * @param array $scopes
+     * @param array<string, mixed> $scopes
      * @param bool $forcePagination
-     * @return \Illuminate\Database\Eloquent\Collection
+     * @return \Illuminate\Database\Eloquent\Collection<int, \Illuminate\Database\Eloquent\Model>
      */
     protected function getIndexItems($scopes = [], $forcePagination = false)
     {
@@ -102,41 +105,17 @@ class TwillHttpBasicAuthController extends ModuleController
     {
         $table = parent::additionalIndexTableColumns();
 
-        $table->push(
-            Text::make()
-                ->field('status')
-                ->title('Status'),
-        );
+        $table->push(Text::make()->field('status')->title('Status'));
 
-        $table->push(
-            Text::make()
-                ->field('from_dot_env')
-                ->title('From .env'),
-        );
+        $table->push(Text::make()->field('from_dot_env')->title('From .env'));
 
-        $table->push(
-            Text::make()
-                ->field('credentials_string')
-                ->title('Credentials'),
-        );
+        $table->push(Text::make()->field('credentials_string')->title('Credentials'));
 
-        $table->push(
-            Text::make()
-                ->field('username')
-                ->title('Username'),
-        );
+        $table->push(Text::make()->field('username')->title('Username'));
 
-        $table->push(
-            Text::make()
-                ->field('allow_laravel_login_string')
-                ->title('Laravel login'),
-        );
+        $table->push(Text::make()->field('allow_laravel_login_string')->title('Laravel login'));
 
-        $table->push(
-            Text::make()
-                ->field('allow_twill_login_string')
-                ->title('Twill login'),
-        );
+        $table->push(Text::make()->field('allow_twill_login_string')->title('Twill login'));
 
         return $table;
     }

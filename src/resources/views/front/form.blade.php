@@ -7,24 +7,17 @@
 
     <br>
 @endif
-<form id="http-basic-auth-form"
-      action="/debug/http-basic-auth"
-      method="POST">
+<form id="http-basic-auth-form" action="/debug/http-basic-auth" method="POST">
     @csrf
 
     <label for="input1">Label</label>
 
-    <input id="input1"
-           name="input1"
-           type="text">
+    <input id="input1" name="input1" type="text">
 
     @if ($TwillHttpBasicAuth['enabled'])
-        <input id="g-recaptcha-response"
-               name="g-recaptcha-response"
-               type="hidden">
+        <input id="g-recaptcha-response" name="g-recaptcha-response" type="hidden">
 
-        <button type="button"
-                onclick="return onSubmitClick();">
+        <button type="button" onclick="return onSubmitClick();">
             Submit
         </button>
     @else

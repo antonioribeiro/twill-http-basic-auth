@@ -34,7 +34,8 @@ class TwillHttpBasicAuthRequest extends Request
     {
         return [
             'domain' => ['required', 'string', 'max:255', $this->domainRule(...)],
-            'username' => ['nullable', 'string', 'max:255'],
+            // a colon would split the user name in two in the Basic header: such a user name could never log in
+            'username' => ['nullable', 'string', 'max:255', 'not_regex:/:/'],
             'password' => ['nullable', 'string', 'max:255'],
         ];
     }

@@ -41,16 +41,23 @@ class Middleware
             return $next($request);
         }
 
-        if ($this->throttle->tooManyFailures($request)) {
+        if ($this->throttle->tooManyFailures($request, $credentials->scope)) {
             return $this->answer($request, 429, 'Too many attempts. Please wait and try again.', [
-                'Retry-After' => (string) $this->throttle->retryAfter($request),
+                'Retry-After' => (string) $this->throttle->retryAfter($request, $credentials->scope),
             ]);
         }
 
         if (!$this->authenticator->passes($request, $credentials)) {
             // a request with no credentials is the browser's first one (or a monitor, or a bot): it is asked, not counted as a guess
             if ($request->getUser() !== null || $request->getPassword() !== null) {
-                $this->throttle->recordFailure($request);
+                $lockedOut = $this->throttle->recordFailure($request, $credentials->scope);
+
+                // host and address only, never the user name or the password that was tried
+                Log::warning('HTTP Basic Auth failed for ' . $request->getHost() . ' from ' . $request->ip() . '.');
+
+                if ($lockedOut) {
+                    Log::warning('HTTP Basic Auth locked out ' . $request->ip() . ' on ' . $request->getHost() . '.');
+                }
             }
 
             return $this->answer($request, 401, 'Authentication required.', [
@@ -58,7 +65,7 @@ class Middleware
             ]);
         }
 
-        $this->throttle->clear($request);
+        $this->throttle->clear($request, $credentials->scope);
 
         $response = $next($request);
 

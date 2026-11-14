@@ -4,8 +4,10 @@ namespace A17\TwillHttpBasicAuth\Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Validator;
 use A17\TwillHttpBasicAuth\Tests\TestCase;
 use A17\TwillHttpBasicAuth\Models\TwillHttpBasicAuth;
+use A17\TwillHttpBasicAuth\Http\Requests\TwillHttpBasicAuthRequest;
 use A17\TwillHttpBasicAuth\Repositories\TwillHttpBasicAuthRepository;
 
 /**
@@ -190,5 +192,51 @@ class AdminFormTest extends TestCase
             $this->assertStringContainsString("{$account} e-mail and password", $note[1] ?? '', "{$field} has no note");
             $this->assertLessThan(70, strlen($note[1] ?? ''), "the note of {$field} is too long");
         }
+    }
+
+    public function test_with_the_package_disabled_the_admin_shows_the_row_not_the_env(): void
+    {
+        config([
+            'twill-http-basic-auth.enabled' => false,
+            'twill-http-basic-auth.keys.username' => 'envuser',
+            'twill-http-basic-auth.keys.password' => 'envsecret',
+        ]);
+
+        $row = $this->save([
+            'domain' => 'admin.example.test',
+            'username' => 'rowuser',
+            'password' => 'rowsecret',
+            'published' => true,
+        ]);
+
+        $this->assertSame('rowuser', $row->username);
+        $this->assertSame('no', $row->from_dot_env);
+        $this->assertSame(
+            'rowsecret',
+            app(TwillHttpBasicAuthRepository::class)->getFormFields($row)['password'] ?? null,
+        );
+    }
+
+    public function test_with_the_package_enabled_and_the_keys_set_the_admin_shows_the_env(): void
+    {
+        $this->envCredentials('envuser', 'envsecret');
+
+        $row = $this->save(['domain' => 'admin.example.test', 'username' => 'rowuser', 'password' => 'rowsecret']);
+
+        $this->assertSame('envuser', $row->username);
+        $this->assertSame('YES', $row->from_dot_env);
+    }
+
+    public function test_a_username_with_a_colon_is_refused_because_it_could_never_log_in(): void
+    {
+        $rules = (new TwillHttpBasicAuthRequest())->rulesForCreate();
+        $data = ['domain' => 'admin.example.test', 'username' => 'a:b', 'password' => 'secret'];
+
+        $this->assertTrue(Validator::make($data, $rules)->errors()->has('username'));
+        $this->assertFalse(
+            Validator::make(['username' => 'ab'] + $data, $rules)
+                ->errors()
+                ->has('username'),
+        );
     }
 }

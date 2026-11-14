@@ -13,7 +13,7 @@
 - **The rate limiter counted every request, successful ones too, under one key shared by all visitors,** so anyone could lock everybody out and a busy user got a 429. It counts failures only (and not requests with no credentials), per IP address and host, and clears on a correct login.
 - **Credentials were compared with `===`** and the library shipped default credentials (`usern@me` / `passw0rt`). Both are gone.
 - **A value that could not be decrypted was used as it was** (and a failed encryption stored the text `ENCRYPTION ERROR`). Decryption is strict now.
-- **The admin form printed the stored password** (and the `.env` one), and Twill's revisions kept every typed password as JSON. Neither happens now; revisions are off for this module.
+- **The admin form printed the `.env` password, any editor could open it, and Twill's revisions kept every typed password as JSON.** The `.env` password is never shown, the module is for ADMIN only (see below) and revisions are off. The stored password is still shown in the form (for ADMIN), but never in JSON or listings.
 - **A library path default left `/admin/*` and `/api/v1/*` open** on every protected host. No path is ignored by default.
 - **State was kept in a singleton**: under Octane, the first request's row served the next ones. Resolution is per request.
 - **No `Cache-Control`** on the 401 or on the pages behind it.
@@ -22,6 +22,13 @@
 - **The columns `username` and `password` were `varchar(255)`**, too short for an encrypted value of 32 characters or more (a 500 on PostgreSQL and strict MySQL, a silent cut on lenient MySQL). A migration makes them `text`.
 - **The two login switches of the admin form have a short note:** people use their own Twill or website e-mail and password at the prompt.
 - **Twill accounts that were not published could pass** with their own password; the Twill login now asks for `published`.
+
+- **The rate limit could be bypassed by changing the Host header** when every host is protected (`.env` credentials or a `*` row): each new name had its own counter. The counter is now per what matched (`*` or the row's host) and visitor address.
+- **Any Twill PUBLISHER could read, change or delete the shared password.** The module needs the `manage-users` gate now (ADMIN and superadmin).
+- **Failed attempts and lockouts are logged** (host and address, never the credentials), one line per failure and one when the limit is reached.
+- **A user name with a colon** could be saved and never log in; it is refused.
+- **With `ENABLED=false` and `.env` keys set** the admin showed "From .env: YES" and a read-only form while the rows were in force. The admin uses the same test as the middleware.
+- **CI:** actions pinned by commit, read-only token.
 
 ### Upgrading from 2.x
 

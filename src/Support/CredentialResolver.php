@@ -87,7 +87,7 @@ class CredentialResolver
 
     private function environmentIsActive(): bool
     {
-        return self::enabled() && $this->settings->hasDotEnv();
+        return $this->settings->hasDotEnv();
     }
 
     private function fromEnvironment(): Credentials
@@ -102,6 +102,7 @@ class CredentialResolver
         return new Credentials(
             $username,
             $password,
+            '*',
             $this->guardsFor(fn(string $name): bool => $this->envGuardEnabled($name)),
         );
     }
@@ -134,6 +135,7 @@ class CredentialResolver
         return new Credentials(
             $this->decrypt($row->username ?? null, 'username', $host),
             $this->decrypt($row->password ?? null, 'password', $host),
+            $row === $star ? '*' : $host,
             $this->guardsFor(fn(string $name): bool => (bool) ($row->{"allow_{$name}_login"} ?? false)),
         );
     }

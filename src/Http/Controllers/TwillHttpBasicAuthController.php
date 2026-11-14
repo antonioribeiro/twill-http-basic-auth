@@ -2,11 +2,13 @@
 
 namespace A17\TwillHttpBasicAuth\Http\Controllers;
 
+use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use A17\Twill\Services\Listings\Columns\Text;
 use A17\Twill\Services\Listings\TableColumns;
+use Illuminate\Contracts\Foundation\Application;
 use A17\Twill\Http\Controllers\Admin\ModuleController;
 use A17\TwillHttpBasicAuth\Repositories\TwillHttpBasicAuthRepository;
 use A17\TwillHttpBasicAuth\Support\Facades\TwillHttpBasicAuth as TwillHttpBasicAuthFacade;
@@ -21,6 +23,17 @@ class TwillHttpBasicAuthController extends ModuleController
 
     /** @var array<string, string> */
     protected $defaultOrders = ['domain' => 'asc'];
+
+    /**
+     * The module holds the shared password: only who manages users (ADMIN and superadmin) reaches it, whatever Twill's own module
+     * gates (`list`, `edit`, `publish`, `delete`: PUBLISHER and ADMIN) would say.
+     */
+    public function __construct(Application $app, Request $request)
+    {
+        parent::__construct($app, $request);
+
+        $this->middleware('can:manage-users');
+    }
 
     public function index(int|null $parentModuleId = null): mixed
     {
